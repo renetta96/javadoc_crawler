@@ -4,3 +4,4 @@
 *_test.jl
 exceptions.txt
 retry_urls.txt
+failed_urls.txt
