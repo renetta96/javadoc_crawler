@@ -59,7 +59,7 @@ class ClassDetailSpider(scrapy.Spider):
 
                 if not is_summary(summary_name):
                     continue
-                print summary_name
+                
                 location = response.xpath('//a[@name="%s"]' % summary_name)[0]
                 table_header = location.xpath('.//following::h3[1]/text()').extract_first()
                 _type = get_summary_type(table_header)

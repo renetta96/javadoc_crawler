@@ -1,3 +1,4 @@
+{"name": "java.applet", "parent": null, "url": "https://docs.oracle.com/javase/7/docs/api/java/applet/package-summary.html", "parent_type": null, "version": "1.7", "type": "Package"}
 {"name": "java.awt", "parent": null, "url": "https://docs.oracle.com/javase/7/docs/api/java/awt/package-summary.html", "parent_type": null, "version": "1.7", "type": "Package"}
 {"name": "java.awt.color", "parent": null, "url": "https://docs.oracle.com/javase/7/docs/api/java/awt/color/package-summary.html", "parent_type": null, "version": "1.7", "type": "Package"}
 {"name": "java.awt.datatransfer", "parent": null, "url": "https://docs.oracle.com/javase/7/docs/api/java/awt/datatransfer/package-summary.html", "parent_type": null, "version": "1.7", "type": "Package"}

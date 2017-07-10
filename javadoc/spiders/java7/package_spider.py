@@ -12,9 +12,8 @@ class PackageSpider(scrapy.Spider):
         count = 0
 
         cells = response.css('table.overviewSummary td.colFirst')
-        for i in xrange(1, len(cells)):
+        for cell in cells:
             count += 1
-            cell = cells[i]
             package_name = cell.css("a::text").extract_first()
             package_url = response.urljoin(cell.css("a::attr(href)").extract_first())
 
