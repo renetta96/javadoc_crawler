@@ -2,6 +2,7 @@ import scrapy
 from javadoc.items import JavaItem
 from javadoc.enums import Version
 import re
+import traceback
 
 
 def _get_item_from_header(text, url, version=Version.JAVA6, override_type=None):
@@ -33,7 +34,7 @@ def _get_summary_type(header):
 
 
 def _is_new_page(new_url, current_url):
-    regex = r'%s#\w*' % current_url
+    regex = r'^%s#.*' % current_url
     pattern = re.compile(regex)
     if pattern.match(new_url):
         return False
@@ -53,6 +54,15 @@ def _get_item_from_cell(cell, _type, url, parent, version=Version.JAVA6):
                     parent=parent_name,
                     parent_type=parent_type)
     return item
+
+
+def _is_summary(s):
+    regex = r'^\w+_summary$'
+    pattern = re.compile(regex)
+    if pattern.match(s):
+        return True
+    else:
+        return False
 
 
 class ClassDetailSpider(scrapy.Spider):
@@ -78,33 +88,45 @@ class ClassDetailSpider(scrapy.Spider):
         cls_item = _get_item_from_header(header_text, response.url, override_type=self._type)
         yield cls_item
 
-        summary = response.css("td.NavBarCell3")[0]
-        for summary_name in summary.css("a").css("::attr(href)").extract():
-            summary_name = summary_name.lstrip("#")
+        try:
+            summary = response.css("td.NavBarCell3")[0]
+            for summary_name in summary.css("a").css("::attr(href)").extract():
+                summary_name = summary_name.lstrip("#")
 
-            tables = response.xpath('//p/a[@name="%s"]/parent::p/following-sibling::table[1]' % summary_name)
-            if len(tables) == 0:
-                tables = response.xpath('//a[@name="%s"]/following-sibling::table[1]' % summary_name)
-            table = tables[0]
+                if not _is_summary(summary_name):
+                    continue
 
-            table_rows = table.css("tr")
+                tables = response.xpath('//p/a[@name="%s"]/parent::p/following::table[1]' % summary_name)
+                if len(tables) == 0:
+                    tables = response.xpath('//a[@name="%s"]/following::table[1]' % summary_name)
 
-            # Handle type
-            table_header = table_rows[0].css("b::text").extract_first()
-            _type = _get_summary_type(table_header)
+                table = tables[0]
 
-            # Handler rows
-            for i in xrange(1, len(table_rows)):
-                row = table_rows[i]
-                cells = row.css("td")
-                cell = cells[len(cells) - 1]
-                href = cell.css("a::attr(href)").extract_first()
-                url = response.urljoin(href)
+                table_rows = table.css("tr")
 
-                if _is_new_page(url, response.url):
-                    yield response.follow(url, ClassDetailSpider(_type=_type).parse)
-                else:
-                    sub_item = _get_item_from_cell(cell, _type, url, cls_item)
-                    yield sub_item
+                # Handle type
+                table_header = table_rows[0].css("b::text").extract_first()
+                _type = _get_summary_type(table_header)
 
+                # Handler rows
+                for i in xrange(1, len(table_rows)):
+                    row = table_rows[i]
+                    cells = row.css("td")
+                    cell = cells[len(cells) - 1]
+                    href = cell.css("a::attr(href)").extract_first()
+                    url = response.urljoin(href)
+
+                    if _is_new_page(url, response.url):
+                        yield response.follow(url, ClassDetailSpider(_type=_type).parse)
+                    else:
+                        sub_item = _get_item_from_cell(cell, _type, url, cls_item)
+                        yield sub_item
+        except Exception as e:
+            with open('exceptions.txt', "a") as exceptions:
+                exceptions.write('Exception at ' + response.url + '\n')
+                exceptions.write(traceback.format_exc() + '\n')
+                exceptions.write('=========================================\n')
+
+            with open('retry_urls.txt', "a") as retry_urls:
+                retry_urls.write(response.url + '\n')
 
