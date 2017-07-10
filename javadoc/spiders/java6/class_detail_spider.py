@@ -66,7 +66,7 @@ def _is_summary(s):
 
 
 class ClassDetailSpider(scrapy.Spider):
-    name = "class_detail"
+    name = "class_detail_java6"
 
     def __init__(self, _type=None, *args, **kwargs):
         super(ClassDetailSpider, self).__init__(*args, **kwargs)
