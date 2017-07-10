@@ -1,8 +1,8 @@
 import scrapy
 from javadoc.items import JavaItem
 from javadoc.enums import Version
-import re
 import traceback
+from javadoc.utils import is_new_page, is_summary, get_summary_type
 
 
 def _get_item_from_header(text, url, version=Version.JAVA6, override_type=None):
@@ -27,21 +27,6 @@ def _get_item_from_header(text, url, version=Version.JAVA6, override_type=None):
     return cls_item
 
 
-def _get_summary_type(header):
-    # Todo : Use regex
-    words = header.split()
-    return " ".join(words[:len(words) - 1])
-
-
-def _is_new_page(new_url, current_url):
-    regex = r'^%s#.*' % current_url
-    pattern = re.compile(regex)
-    if pattern.match(new_url):
-        return False
-    else:
-        return True
-
-
 def _get_item_from_cell(cell, _type, url, parent, version=Version.JAVA6):
     item_name = cell.css("a::text").extract_first()
     parent_name = parent['parent'] + '.' + parent['name']
@@ -54,15 +39,6 @@ def _get_item_from_cell(cell, _type, url, parent, version=Version.JAVA6):
                     parent=parent_name,
                     parent_type=parent_type)
     return item
-
-
-def _is_summary(s):
-    regex = r'^\w+_summary$'
-    pattern = re.compile(regex)
-    if pattern.match(s):
-        return True
-    else:
-        return False
 
 
 class ClassDetailSpider(scrapy.Spider):
@@ -93,7 +69,7 @@ class ClassDetailSpider(scrapy.Spider):
             for summary_name in summary.css("a").css("::attr(href)").extract():
                 summary_name = summary_name.lstrip("#")
 
-                if not _is_summary(summary_name):
+                if not is_summary(summary_name):
                     continue
 
                 tables = response.xpath('//p/a[@name="%s"]/parent::p/following::table[1]' % summary_name)
@@ -106,7 +82,7 @@ class ClassDetailSpider(scrapy.Spider):
 
                 # Handle type
                 table_header = table_rows[0].css("b::text").extract_first()
-                _type = _get_summary_type(table_header)
+                _type = get_summary_type(table_header)
 
                 # Handler rows
                 for i in xrange(1, len(table_rows)):
@@ -116,11 +92,12 @@ class ClassDetailSpider(scrapy.Spider):
                     href = cell.css("a::attr(href)").extract_first()
                     url = response.urljoin(href)
 
-                    if _is_new_page(url, response.url):
+                    if is_new_page(url, response.url):
                         yield response.follow(url, ClassDetailSpider(_type=_type).parse)
                     else:
                         sub_item = _get_item_from_cell(cell, _type, url, cls_item)
                         yield sub_item
+
         except Exception as e:
             with open('exceptions.txt', "a") as exceptions:
                 exceptions.write('Exception at ' + response.url + '\n')

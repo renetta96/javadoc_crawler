@@ -2,3 +2,5 @@
 .DS_Store
 *.pyc
 *_test.jl
+exceptions.txt
+retry_urls.txt
