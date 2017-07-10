@@ -1,12 +1,13 @@
 import scrapy
 from javadoc.items import JavaItem
 from javadoc.enums import Version
-from javadoc.utils import is_summary, is_new_page, get_summary_type
+from javadoc.utils import is_new_page, get_summary_type
 import traceback
+import re
 
 
-def _get_item_from_header(header, url, version=Version.JAVA7, override_type=None):
-    package = header.css('div.subTitle::text').extract_first()
+def _get_item_from_header(header, url, version=Version.JAVA8, override_type=None):
+    package = header.css('div.subTitle::text').extract()[-1]
     text = header.css('h2.title::text').extract_first()
 
     words = text.split()
@@ -17,7 +18,7 @@ def _get_item_from_header(header, url, version=Version.JAVA7, override_type=None
     return cls_item
 
 
-def _get_item_from_cell(cell, _type, url, parent, version=Version.JAVA7):
+def _get_item_from_cell(cell, _type, url, parent, version=Version.JAVA8):
     item_name = cell.css("a::text").extract_first()
     parent_name = parent['parent'] + '.' + parent['name']
     parent_type = parent['type']
@@ -31,8 +32,17 @@ def _get_item_from_cell(cell, _type, url, parent, version=Version.JAVA7):
     return item
 
 
+def _is_summary(s):
+    regex = r'^[\w\.]+\.summary$'
+    pattern = re.compile(regex)
+    if pattern.match(s):
+        return True
+    else:
+        return False
+
+
 class ClassDetailSpider(scrapy.Spider):
-    name = 'class_detail_java7'
+    name = 'class_detail_java8'
 
     def __init__(self, _type=None, *args, **kwargs):
         super(ClassDetailSpider, self).__init__(*args, **kwargs)
@@ -57,7 +67,7 @@ class ClassDetailSpider(scrapy.Spider):
             for summary_name in response.css('div.subNav ul.subNavList')[0].css('li a::attr(href)').extract():
                 summary_name = summary_name.lstrip("#")
 
-                if not is_summary(summary_name):
+                if not _is_summary(summary_name):
                     continue
 
                 location = response.xpath('//a[@name="%s"]' % summary_name)[0]
@@ -69,8 +79,7 @@ class ClassDetailSpider(scrapy.Spider):
 
                 for i in xrange(1, len(rows)):
                     row = rows[i]
-                    cells = row.css('td')
-                    cell = cells[-1]
+                    cell = row.css('td')[-1]
 
                     href = cell.css('a::attr(href)').extract_first()
                     url = response.urljoin(href)

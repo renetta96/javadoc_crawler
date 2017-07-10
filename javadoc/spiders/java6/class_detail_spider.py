@@ -19,8 +19,8 @@ def _get_item_from_header(text, url, version=Version.JAVA6, override_type=None):
             package = "%s" % t
         elif not (cls_name and _type):
             words = t.split()
-            cls_name = words[len(words) - 1]
-            _type = override_type if override_type else " ".join(words[:len(words) - 1])
+            cls_name = words[-1]
+            _type = override_type if override_type else " ".join(words[:-1])
             break
 
     cls_item = JavaItem(name=cls_name, type=_type, parent=package, parent_type="Package", url=url, version=version)
@@ -88,7 +88,7 @@ class ClassDetailSpider(scrapy.Spider):
                 for i in xrange(1, len(table_rows)):
                     row = table_rows[i]
                     cells = row.css("td")
-                    cell = cells[len(cells) - 1]
+                    cell = cells[-1]
                     href = cell.css("a::attr(href)").extract_first()
                     url = response.urljoin(href)
 
