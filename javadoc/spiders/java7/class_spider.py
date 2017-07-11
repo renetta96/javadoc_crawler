@@ -11,7 +11,11 @@ class ClassSpider(scrapy.Spider):
         count = 0
         for cls in response.css("div.indexContainer ul li a"):
             url = cls.css("::attr(href)").extract_first()
-            yield response.follow(url, ClassDetailSpider().parse)
+            cls_name = cls.css("::text").extract_first()
+
+            assert cls_name
+
+            yield response.follow(url, ClassDetailSpider(_name=cls_name).parse)
             count += 1
             if count >= limit >= 0:
                 break

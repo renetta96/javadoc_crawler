@@ -1,17 +1,15 @@
 import scrapy
 from javadoc.items import JavaItem
 from javadoc.enums import Version
-from javadoc.utils import is_summary, is_new_page, get_summary_type
+from javadoc.utils import is_summary, is_new_page, get_summary_type, get_class_type
 import traceback
 
 
-def _get_item_from_header(header, url, version=Version.JAVA7, override_type=None):
+def _get_item_from_header(header, cls_name, url, version=Version.JAVA7, override_type=None):
     package = header.css('div.subTitle::text').extract_first()
     text = header.css('h2.title::text').extract_first()
 
-    words = text.split()
-    _type = override_type if override_type else " ".join(words[:-1])
-    cls_name = words[-1]
+    _type = override_type if override_type else get_class_type(text, cls_name)
 
     cls_item = JavaItem(name=cls_name, type=_type, parent=package, parent_type="Package", url=url, version=version)
     return cls_item
@@ -34,9 +32,10 @@ def _get_item_from_cell(cell, _type, url, parent, version=Version.JAVA7):
 class ClassDetailSpider(scrapy.Spider):
     name = 'class_detail_java7'
 
-    def __init__(self, _type=None, *args, **kwargs):
+    def __init__(self, _type=None, _name=None, *args, **kwargs):
         super(ClassDetailSpider, self).__init__(*args, **kwargs)
         self._type = _type
+        self._name = _name
 
         if kwargs.get('start_url', None):
             self.start_urls = [kwargs.get('start_url')]
@@ -50,7 +49,7 @@ class ClassDetailSpider(scrapy.Spider):
 
         header = response.css("div.header")[0]
 
-        cls_item = _get_item_from_header(header, response.url, override_type=self._type)
+        cls_item = _get_item_from_header(header, self._name, response.url, override_type=self._type)
         yield cls_item
 
         try:
@@ -74,9 +73,10 @@ class ClassDetailSpider(scrapy.Spider):
 
                     href = cell.css('a::attr(href)').extract_first()
                     url = response.urljoin(href)
+                    cls_name = cell.css('a::text').extract_first()
 
                     if is_new_page(url, response.url):
-                        yield response.follow(url, ClassDetailSpider(_type=_type).parse)
+                        yield response.follow(url, ClassDetailSpider(_type=_type, _name=cls_name).parse)
                     else:
                         sub_item = _get_item_from_cell(cell, _type, url, cls_item)
                         yield sub_item
