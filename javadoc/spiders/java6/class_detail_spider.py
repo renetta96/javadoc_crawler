@@ -2,12 +2,11 @@ import scrapy
 from javadoc.items import JavaItem
 from javadoc.enums import Version
 import traceback
-from javadoc.utils import is_new_page, is_summary, get_summary_type
+from javadoc.utils import is_new_page, is_summary, get_summary_type, get_class_type
 
 
-def _get_item_from_header(text, url, version=Version.JAVA6, override_type=None):
+def _get_item_from_header(text, cls_name, url, version=Version.JAVA6, override_type=None):
     package = None
-    cls_name = None
     _type = None
 
     for t in text:
@@ -16,11 +15,9 @@ def _get_item_from_header(text, url, version=Version.JAVA6, override_type=None):
             continue
 
         if not package:
-            package = "%s" % t
-        elif not (cls_name and _type):
-            words = t.split()
-            cls_name = words[-1]
-            _type = override_type if override_type else " ".join(words[:-1])
+            package = t
+        elif not _type:
+            _type = override_type if override_type else get_class_type(t, cls_name)
             break
 
     cls_item = JavaItem(name=cls_name, type=_type, parent=package, parent_type="Package", url=url, version=version)
@@ -44,10 +41,10 @@ def _get_item_from_cell(cell, _type, url, parent, version=Version.JAVA6):
 class ClassDetailSpider(scrapy.Spider):
     name = "class_detail_java6"
 
-    def __init__(self, _type=None, *args, **kwargs):
+    def __init__(self, _type=None, _name=None, *args, **kwargs):
         super(ClassDetailSpider, self).__init__(*args, **kwargs)
         self._type = _type
-
+        self._name = _name
         if kwargs.get('start_url', None):
             self.start_urls = [kwargs.get('start_url')]
 
@@ -61,7 +58,7 @@ class ClassDetailSpider(scrapy.Spider):
         header = response.css("h2")[0]
         header_text = header.css("::text").extract()
 
-        cls_item = _get_item_from_header(header_text, response.url, override_type=self._type)
+        cls_item = _get_item_from_header(header_text, self._name, response.url, override_type=self._type)
         yield cls_item
 
         try:
@@ -91,9 +88,10 @@ class ClassDetailSpider(scrapy.Spider):
                     cell = cells[-1]
                     href = cell.css("a::attr(href)").extract_first()
                     url = response.urljoin(href)
+                    cls_name = cell.css("a::text").extract_first()
 
                     if is_new_page(url, response.url):
-                        yield response.follow(url, ClassDetailSpider(_type=_type).parse)
+                        yield response.follow(url, ClassDetailSpider(_type=_type, _name=cls_name).parse)
                     else:
                         sub_item = _get_item_from_cell(cell, _type, url, cls_item)
                         yield sub_item

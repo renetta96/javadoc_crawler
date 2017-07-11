@@ -23,3 +23,9 @@ def get_summary_type(header):
     # Todo : Use regex
     words = header.split()
     return " ".join(words[:len(words) - 1])
+
+
+def get_class_type(text, cls_name):
+    m = text.find(cls_name)
+    assert m != -1
+    return text[:m].rstrip().lstrip()

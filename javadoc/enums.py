@@ -3,5 +3,6 @@ class Version:
     JAVA7 = '1.7'
     JAVA8 = '1.8'
 
-    def get_list(self):
-        return self.JAVA6, self.JAVA7, self.JAVA8
+    @classmethod
+    def get_list(cls):
+        return cls.JAVA6, cls.JAVA7, cls.JAVA8
